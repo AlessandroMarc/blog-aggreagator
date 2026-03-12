@@ -1,6 +1,6 @@
 import fs from "fs";
-import os from "os";
 import path from "path";
+import os from "os";
 
 export type Config = {
     dbUrl: string;
@@ -12,7 +12,7 @@ type ConfigJson = {
     current_user_name: string;
 }
 
-const gatorConfigPath = path.join(process.cwd(), ".gatorconfig.json");
+const gatorConfigPath = path.join(os.homedir(), ".gatorconfig.json");
 
 function jsonToConfig(json: ConfigJson): Config {
     return {
@@ -28,7 +28,7 @@ function configToJson(config: Config): ConfigJson {
     };
 }
 
-export function setUser(username: string) {
+export async function setUser(username: string) {
     const config = readConfig();
     config.currentUserName = username;
     writeConfig(config);
@@ -54,8 +54,13 @@ function validateConfig(jsonConfig: ConfigJson): void {
     if (!jsonConfig.db_url) {
         throw new Error("db_url is required");
     }
+    if (jsonConfig.db_url.includes("example")) {
+        throw new Error(
+            "db_url appears to be a placeholder (contains 'example'); " +
+            "please update .gatorconfig.json with a real Postgres URL."
+        );
+    }
     if (!jsonConfig.current_user_name) {
         throw new Error("current_user_name is required");
     }
 }
-

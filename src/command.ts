@@ -1,30 +1,35 @@
 import { setUser } from "./config";
 
-type CommandHandler = (cmdName: string, ...args: string[]) => void;
+export type CommandHandler = (cmdName: string, ...args: string[]) => Promise<void>;
 
-function handleCommand(cmdName: string, ...args: string[]) {
-    if (args.length === 0) {
-        throw new Error("No command provided");
-        return;
-    }
+// helper that sets the current user; exported so it can be reused in tests or
+// default command registrations.
+export async function handleCommand(cmdName: string, ...args: string[]) {
+  if (args.length === 0) {
+    throw new Error("No command provided");
+  }
 
-    setUser(args[0]);
+  setUser(args[0]);
 
-    console.log("User set to", args[0]);
+  console.log("User set to", args[0]);
 }
 
 export type CommandsRegistry = {
-    [key: string]: CommandHandler;
+  [key: string]: CommandHandler;
 }
 
 export function registerCommand(registry: CommandsRegistry, cmdName: string, handler: CommandHandler) {
-    registry[cmdName] = handler;
+  registry[cmdName] = handler;
 }
 
-function runCommand(registry: CommandsRegistry, cmdName: string, args: string) {
-    const handler = registry[cmdName];
-    if (!handler) {
-        throw new Error("Command not found");
-    }
-    handler(cmdName, ...args);
+export async function runCommand(
+  registry: CommandsRegistry,
+  cmdName: string,
+  args: string[],
+) {
+  const handler = registry[cmdName];
+  if (!handler) {
+    throw new Error("Command not found");
+  }
+  await handler(cmdName, ...args);
 }

@@ -5,6 +5,6 @@ export default defineConfig({
   out: "src/generated",
   dialect: "postgresql",
   dbCredentials: {
-    url: "your_connection_string",
+    url: "postgres://alessandromarchesin:@localhost:5432/gator?sslmode=disable",
   },
 });
