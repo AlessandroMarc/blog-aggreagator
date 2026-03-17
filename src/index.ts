@@ -1,6 +1,7 @@
 import { CommandsRegistry, registerCommand, runCommand } from "./command";
 import { readConfig, Config, setUser } from "./config";
 import { createUser, deleteAllUsers, getAllUsers, getUserByName } from "./lib/db/queries";
+import { addFeed, getRssFeed } from "./lib/rss";
 
 
 const registerUser = async (_cmd: string, username: string): Promise<void> => {
@@ -37,6 +38,8 @@ const commands: CommandsRegistry = {
     login: setUserLocally,
     register: registerUser,
     users: listUsers,
+    agg: getRssFeed,
+    addfeed: addFeed
 };
 
 async function main() {
@@ -46,6 +49,8 @@ async function main() {
     registerCommand(commandRegistry, "register", registerUser);
     registerCommand(commandRegistry, "reset", truncateUsers)
     registerCommand(commandRegistry, "users", listUsers);
+    registerCommand(commandRegistry, "agg", getRssFeed);
+    registerCommand(commandRegistry, "addfeed", addFeed);
 
     const inputs = process.argv.slice(2);
 
@@ -58,6 +63,7 @@ async function main() {
     const args = inputs.slice(1);
 
     try {
+        console.log(`Running command: ${command} with args: ${args.join(", ")}`);
         await runCommand(commandRegistry, command, args);
     } catch (err: any) {
         console.error("Error running command:", err.message || err);
