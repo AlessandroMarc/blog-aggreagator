@@ -1,7 +1,8 @@
 import { CommandsRegistry, registerCommand, runCommand } from "./command";
 import { readConfig, Config, setUser } from "./config";
 import { createUser, deleteAllUsers, getAllUsers, getUserByName } from "./lib/db/queries";
-import { addFeed, getRssFeed } from "./lib/rss";
+import { addFeed, getRssFeed, getAllFeeds,  createFollow, fetchFollowingFeeds } from "./commands/rss";
+import { middlewareLoggedIn } from "./middleware";
 
 
 const registerUser = async (_cmd: string, username: string): Promise<void> => {
@@ -29,28 +30,23 @@ const truncateUsers = async (): Promise<void> => {
 const listUsers = async (): Promise<void> => {
     const users = await getAllUsers();
     users.forEach(user => {
-        const  isCurrent : boolean = user.name === readConfig().currentUserName;
+        const isCurrent: boolean = user.name === readConfig().currentUserName;
         console.log(`* ${user.name}${isCurrent ? " (current)" : ""}`);
     });
 }
 
-const commands: CommandsRegistry = {
-    login: setUserLocally,
-    register: registerUser,
-    users: listUsers,
-    agg: getRssFeed,
-    addfeed: addFeed
-};
-
 async function main() {
     const commandRegistry: CommandsRegistry = {};
 
-    registerCommand(commandRegistry, "login", setUserLocally);
-    registerCommand(commandRegistry, "register", registerUser);
-    registerCommand(commandRegistry, "reset", truncateUsers)
-    registerCommand(commandRegistry, "users", listUsers);
-    registerCommand(commandRegistry, "agg", getRssFeed);
-    registerCommand(commandRegistry, "addfeed", addFeed);
+    registerCommand(commandRegistry, "login", middlewareLoggedIn(setUserLocally));
+    registerCommand(commandRegistry, "register", middlewareLoggedIn(registerUser));
+    registerCommand(commandRegistry, "reset", middlewareLoggedIn(truncateUsers));
+    registerCommand(commandRegistry, "users", middlewareLoggedIn(listUsers));
+    registerCommand(commandRegistry, "agg", middlewareLoggedIn(getRssFeed));
+    registerCommand(commandRegistry, "feeds", middlewareLoggedIn(getAllFeeds));
+    registerCommand(commandRegistry, "addfeed", middlewareLoggedIn(addFeed));
+    registerCommand(commandRegistry, "follow", middlewareLoggedIn(createFollow));
+    registerCommand(commandRegistry, "following", middlewareLoggedIn(fetchFollowingFeeds));
 
     const inputs = process.argv.slice(2);
 

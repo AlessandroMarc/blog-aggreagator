@@ -1,6 +1,16 @@
 import { setUser } from "./config";
+import { User } from "./schema";
 
-export type CommandHandler = (cmdName: string, ...args: string[]) => Promise<void>;
+export type CommandHandler = (
+  cmdName: string,
+  ...args: string[]
+) => Promise<void>;
+
+export type UserCommandHandler = (
+  cmdName: string,
+  user: User,
+  ...args: string[]
+) => Promise<void>;
 
 // helper that sets the current user; exported so it can be reused in tests or
 // default command registrations.

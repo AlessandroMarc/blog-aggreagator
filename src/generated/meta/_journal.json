@@ -8,6 +8,13 @@
       "when": 1773735727010,
       "tag": "0000_loud_rocket_raccoon",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1773906562593,
+      "tag": "0001_lovely_rattler",
+      "breakpoints": true
     }
   ]
 }
