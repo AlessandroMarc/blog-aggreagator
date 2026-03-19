@@ -1,5 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
-import { createFeed, getFeeds, getUserById, createFeedFollowEntry, getFeedByUrl, getFeedFollowEntriesByUserId } from "src/lib/db/queries";
+import { createFeed, getFeeds, getUserById, createFeedFollowEntry, getFeedByUrl, getFeedFollowEntriesByUserId, deleteFeedFollowEntry } from "src/lib/db/queries";
 import { Feed, User } from "src/schema";
 
 type RSSFeed = {
@@ -168,4 +168,19 @@ export const fetchFollowingFeeds = async (_cmd: string, user: User): Promise<voi
     followingFeeds.forEach(feed => {
         console.log(`* ${feed.name} (${feed.url})`);
     });
+}
+
+export const unfollowFeed = async (_cmd: string, user: User, url: string): Promise<void> => {
+    if (!url) {
+        throw new Error("URL argument required");
+    }
+
+    const feed = await getFeedByUrl(url);
+    if (!feed) {
+        throw new Error(`Feed with URL ${url} not found`);
+    }
+
+    await deleteFeedFollowEntry(user.id, feed.id);
+
+    console.log(`User ${user.name} has unfollowed feed ${feed.name}`);
 }

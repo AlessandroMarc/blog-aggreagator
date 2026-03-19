@@ -1,7 +1,7 @@
 
 import { users, feeds, feedFollows } from "../../schema";
 import { db } from "./index";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 export async function createUser(name: string) {
     const existingUser = await getUserByName(name);
@@ -38,7 +38,7 @@ export async function getFeeds() {
 
 export async function getFeedByUrl(url: string) {
     const result = await db.select().from(feeds).where(eq(feeds.url, url));
-    return result[0] ?? null;   
+    return result[0] ?? null;
 }
 
 export async function createFeed(name: string, url: string, userId: string) {
@@ -54,4 +54,17 @@ export async function createFeedFollowEntry(userId: string, feedId: string) {
 export async function getFeedFollowEntriesByUserId(userId: string) {
     const result = await db.select().from(feedFollows).where(eq(feedFollows.userId, userId));
     return result;
+}
+
+export async function deleteFeedFollowEntry(userId: string, feedId: string) {
+    const feedToUnfollow = await db.select().from(feedFollows).where(and(
+        eq(feedFollows.userId, userId),
+        eq(feedFollows.feedId, feedId)),
+    ).limit(1);
+
+    if (feedToUnfollow.length === 0) {
+        throw new Error("Feed follow entry not found");
+    }
+
+    await db.delete(feedFollows).where(eq(feedFollows.id, feedToUnfollow[0].id));
 }
