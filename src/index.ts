@@ -1,25 +1,25 @@
-import { CommandsRegistry, registerCommand, runCommand } from "./command";
+import { CommandsRegistry, registerCommand, runCommand, UserCommandHandler, CommandHandler } from "./command";
 import { readConfig, Config, setUser } from "./config";
 import { createUser, deleteAllUsers, getAllUsers, getUserByName } from "./lib/db/queries";
 import { addFeed, getRssFeed, getAllFeeds,  createFollow, fetchFollowingFeeds } from "./commands/rss";
 import { middlewareLoggedIn } from "./middleware";
 
 
-const registerUser = async (_cmd: string, username: string): Promise<void> => {
-    if (!username) throw new Error("username argument required");
-    const result = await createUser(username);
-    setUser(username);
+const registerUser: CommandHandler = async (_cmd, _username: string): Promise<void> => {
+    if (!_username) throw new Error("username argument required");
+    const result = await createUser(_username);
+    setUser(_username);
     console.log("Registered user", result);
 };
 
-const setUserLocally = async (_cmd: string, username: string): Promise<void> => {
-    if (!username) throw new Error("username argument required");
-    let user = await getUserByName(username);
+const setUserLocally: CommandHandler = async (_cmd, _username: string): Promise<void> => {
+    if (!_username) throw new Error("username argument required");
+    let user = await getUserByName(_username);
     if (!user) {
         throw new Error("User not found; please register first");
     }
-    setUser(username);
-    console.log("User set to", username);
+    setUser(_username);
+    console.log("User set to", _username);
 };
 
 const truncateUsers = async (): Promise<void> => {
@@ -38,9 +38,9 @@ const listUsers = async (): Promise<void> => {
 async function main() {
     const commandRegistry: CommandsRegistry = {};
 
-    registerCommand(commandRegistry, "login", middlewareLoggedIn(setUserLocally));
-    registerCommand(commandRegistry, "register", middlewareLoggedIn(registerUser));
-    registerCommand(commandRegistry, "reset", middlewareLoggedIn(truncateUsers));
+    registerCommand(commandRegistry, "login", setUserLocally);
+    registerCommand(commandRegistry, "register", registerUser);
+    registerCommand(commandRegistry, "reset", truncateUsers);
     registerCommand(commandRegistry, "users", middlewareLoggedIn(listUsers));
     registerCommand(commandRegistry, "agg", middlewareLoggedIn(getRssFeed));
     registerCommand(commandRegistry, "feeds", middlewareLoggedIn(getAllFeeds));

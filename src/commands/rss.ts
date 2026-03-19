@@ -1,7 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
-import { create } from "node:domain";
-import { readConfig } from "src/config";
-import { createFeed, getFeeds, getUserById, getUserByName, createFeedFollowEntry, getFeedByUrl, getFeedFollowEntriesByUserId } from "src/lib/db/queries";
+import { createFeed, getFeeds, getUserById, createFeedFollowEntry, getFeedByUrl, getFeedFollowEntriesByUserId } from "src/lib/db/queries";
 import { Feed, User } from "src/schema";
 
 type RSSFeed = {
@@ -91,17 +89,10 @@ export const getRssFeed = async (_cmd: string): Promise<void> => {
     }
 }
 
-export const addFeed = async (_cmd: string, name: string, url: string): Promise<void> => {
+export const addFeed = async (_cmd: string, user: User, name: string, url: string): Promise<void> => {
     if (!name || !url) {
         throw new Error("URL argument required");
     }
-
-    const userName = readConfig().currentUserName;
-    const user = await getUserByName(userName);
-    if (!user) {
-        throw new Error(`User ${userName} not found`);
-    }
-
 
     const feed = await createFeed(name, url, user.id)
     if (!feed) {
@@ -113,13 +104,13 @@ export const addFeed = async (_cmd: string, name: string, url: string): Promise<
     try {
         const xml = await fetchFeed(url);
         const feed = parseFeed(xml);
-        console.log("Feed title:", feed.channel.title), 'username:', userName, 'feed name:', name, 'feed url:', url;
+        console.log("Feed title:", feed.channel.title), 'username:', user.name, 'feed name:', name, 'feed url:', url;
     } catch (error) {
         console.error("Error adding RSS feed:", error);
     }
 }
 
-export async function getAllFeeds(_: string) {
+export async function getAllFeeds(_: string, user: User) {
     const feeds = await getFeeds();
 
     if (feeds.length === 0) {
@@ -148,15 +139,9 @@ function printFeed(feed: Feed, user: User) {
     console.log(`* User:          ${user.name}`);
 }
 
-export const createFollow = async (_cmd: string, url: string): Promise<void> => {
+export const createFollow = async (_cmd: string, user: User, url: string): Promise<void> => {
     if (!url) {
         throw new Error("URL argument required");
-    }
-
-    const userName = readConfig().currentUserName;
-    const user = await getUserByName(userName);
-    if (!user) {
-        throw new Error(`User ${userName} not found`);
     }
 
     const feed = await getFeedByUrl(url);
@@ -172,13 +157,7 @@ export const createFollow = async (_cmd: string, url: string): Promise<void> => 
     console.log(`User ${user.name} is now following feed ${feed.name}`);
 }
 
-export const fetchFollowingFeeds = async () => {
-    const userName = readConfig().currentUserName;
-    const user = await getUserByName(userName);
-    if (!user) {
-        throw new Error(`User ${userName} not found`);
-    }
-
+export const fetchFollowingFeeds = async (_cmd: string, user: User): Promise<void> => {
     const feedFollowEntries = await getFeedFollowEntriesByUserId(user.id);
     const feedIds = feedFollowEntries.map(entry => entry.feedId);
 
