@@ -1,7 +1,7 @@
 import { CommandsRegistry, registerCommand, runCommand, UserCommandHandler, CommandHandler } from "./command";
 import { readConfig, Config, setUser } from "./config";
 import { createUser, deleteAllUsers, getAllUsers, getUserByName } from "./lib/db/queries";
-import { addFeed, getRssFeed, getAllFeeds,  createFollow, fetchFollowingFeeds, unfollowFeed } from "./commands/rss";
+import { addFeed, getRssFeed, getAllFeeds,  createFollow, fetchFollowingFeeds, unfollowFeed, handleBrowse } from "./commands/rss";
 import { middlewareLoggedIn } from "./middleware";
 
 
@@ -48,6 +48,7 @@ async function main() {
     registerCommand(commandRegistry, "follow", middlewareLoggedIn(createFollow));
     registerCommand(commandRegistry, "following", middlewareLoggedIn(fetchFollowingFeeds));
     registerCommand(commandRegistry, "unfollow", middlewareLoggedIn(unfollowFeed));
+    registerCommand(commandRegistry, "browse", middlewareLoggedIn(handleBrowse));
 
     const inputs = process.argv.slice(2);
 

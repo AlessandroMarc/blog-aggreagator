@@ -1,5 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
-import { createFeed, getFeeds, getUserById, createFeedFollowEntry, getFeedByUrl, getFeedFollowEntriesByUserId, deleteFeedFollowEntry } from "src/lib/db/queries";
+import { parse } from "path";
+import { createFeed, getFeeds, getUserById, createFeedFollowEntry, getFeedByUrl, getFeedFollowEntriesByUserId, deleteFeedFollowEntry, markFeedFetched, getNextFeedToFetch, createPost, getPostsForUser } from "src/lib/db/queries";
 import { Feed, User } from "src/schema";
 
 type RSSFeed = {
@@ -78,15 +79,65 @@ const parseFeed = (xml: string): RSSFeed => {
     };
 }
 
-export const getRssFeed = async (_cmd: string): Promise<void> => {
-    let url = "https://www.wagslane.dev/index.xml";
-
-    try {
-        const xml = await fetchFeed(url);
-        const feed = parseFeed(xml);
-    } catch (error) {
-        console.error("Error processing RSS feed:", error);
+const parseDuration = (durationStr: string): number => {
+    console.log(`Parsing duration string: ${durationStr}`);
+    const regex = /^(\d+)(ms|s|m|h)$/;
+    const match = durationStr.match(regex);
+    if (!match) {
+        throw new Error(`Invalid duration format: ${durationStr}`);
     }
+    const [, value, unit] = match;
+    const num = parseInt(value, 10);
+    switch (unit) {
+        case "ms":
+            return num;
+        case "s":
+            return num * 1000;
+        case "m":
+            return num * 60 * 1000;
+        case "h":
+            return num * 60 * 60 * 1000;
+        default:
+            throw new Error(`Unknown duration unit: ${unit}`);
+    }
+};
+
+const handleError = (error: any) => {
+    console.error("Error in RSS feed scraper:", error);
+}
+
+export const getRssFeed = async (_cmd: string, _user: User, time_between_reqs: string): Promise<void> => {
+
+    let timeBetweenRequests = parseDuration(time_between_reqs.toString());
+
+    console.log(`Starting RSS feed scraper with interval ${timeBetweenRequests} ms...`);
+
+    scrapeFeeds().catch(handleError);
+
+    const interval = setInterval(() => {
+        scrapeFeeds().catch(handleError);
+    }, timeBetweenRequests);
+}
+
+async function scrapeFeeds() {
+    let feed = await getNextFeedToFetch();
+    let url = feed?.url;
+    if (!url) {
+        console.log("No feeds to fetch");
+        return;
+    }
+
+    markFeedFetched(feed.id);
+
+    const xml = await fetchFeed(url);
+    const parsedFeed = parseFeed(xml);
+
+    // store posts in db
+    for (let item of parsedFeed.channel.item) {
+        await createPost(item.title, item.link, feed.id, new Date(item.pubDate), item.description);
+    }
+
+    console.log("Feed title:", parsedFeed.channel.title, 'feed url:', url);
 }
 
 export const addFeed = async (_cmd: string, user: User, name: string, url: string): Promise<void> => {
@@ -183,4 +234,40 @@ export const unfollowFeed = async (_cmd: string, user: User, url: string): Promi
     await deleteFeedFollowEntry(user.id, feed.id);
 
     console.log(`User ${user.name} has unfollowed feed ${feed.name}`);
+}
+
+export const markFeedAsFetched = async (_cmd: string, _user: User, url: string): Promise<void> => {
+    if (!url) {
+        throw new Error("URL argument required");
+    }
+
+    const feed = await getFeedByUrl(url);
+    if (!feed) {
+        throw new Error(`Feed with URL ${url} not found`);
+    }
+
+    await markFeedFetched(feed.id);
+
+    console.log(`Marked feed ${feed.name} as fetched`);
+}
+
+
+export async function handleBrowse(_cmd: string, user: User) {
+    const posts = await getPostsForUser(user.id);
+
+    if (posts.length === 0) {
+        console.log("No posts found for followed feeds");
+        return;
+    }
+
+    console.log(`Found ${posts.length} posts from followed feeds:\n`);
+    posts.forEach(post => {
+        console.log(`* ${post.title} (${post.url}) - published at ${post.publishedAt}`);
+        console.log(`  Description: ${post.description}`);
+        console.log(`  Feed ID: ${post.feed_id}`);
+        console.log(`  Post ID: ${post.id}`);
+        console.log(`  Created at: ${post.createdAt}`);
+        console.log(`  Updated at: ${post.updatedAt}`);
+        console.log(`-------------------------------------`);
+    });
 }

@@ -1,7 +1,7 @@
 
-import { users, feeds, feedFollows } from "../../schema";
+import { users, feeds, feedFollows, posts } from "../../schema";
 import { db } from "./index";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 
 export async function createUser(name: string) {
     const existingUser = await getUserByName(name);
@@ -67,4 +67,32 @@ export async function deleteFeedFollowEntry(userId: string, feedId: string) {
     }
 
     await db.delete(feedFollows).where(eq(feedFollows.id, feedToUnfollow[0].id));
+}
+
+export async function markFeedFetched(feedId: string) {
+    await db.update(feeds).set({ last_fetched_at: new Date() }).where(eq(feeds.id, feedId));
+    await db.update(feeds).set({ updatedAt: new Date() }).where(eq(feeds.id, feedId));
+}
+
+export async function getNextFeedToFetch() {
+    const result = await db.select()
+        .from(feeds)
+        .orderBy(sql`${feeds.last_fetched_at} NULLS FIRST`)
+        .limit(1);
+    return result[0] ?? null;
+}
+
+export async function createPost(title: string, url: string, feedId: string, publishedAt: Date, description?: string) {
+    const [result] = await db.insert(posts).values({ title, url, feed_id: feedId, description, publishedAt }).returning();
+    return result;
+}
+
+export async function getPostsForUser(userId: string, limit: number = 2) {
+    const result = await db.select()
+        .from(posts)
+        .innerJoin(feedFollows, eq(feedFollows.feedId, posts.feed_id))
+        .where(eq(feedFollows.userId, userId))
+        .orderBy(sql`${posts.publishedAt} DESC`)
+        .limit(limit);
+    return result.map(row => row.posts);
 }
